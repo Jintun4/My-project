@@ -1,0 +1,58 @@
+# Load necessary packages
+library(readr)
+library(dplyr)
+library(ggplot2)
+
+# Load the dataset
+data <- read_csv("stack_overflow_data.csv")
+
+# Preview this dataset
+glimpse(data)
+#Add column fraction by using column num_questions and year_total
+r_over_time <- data %>%
+filter(tag == "r")%>%
+  mutate(fraction = num_questions/year_total*100)
+r_over_time
+#graph the trend of r overtime
+ggplot(r_over_time, aes(year,num_questions))+
+geom_line()
+
+#fraction of the total number of questions in 2020 had R tag
+r_percantage <- r_over_time %>%
+filter(year == 2020) %>%
+mutate(fraction = fraction*100) %>%
+select(fraction)
+r_percantage
+
+#five most asked-about tags between 2015-2020
+highest_tags_jt <- data %>%
+filter(year >= 2015) %>%
+group_by(tag) %>%
+summarize(tag_total = sum(num_questions)) %>%
+arrange(desc(tag_total)) %>%
+head(tag, n = 5) 
+
+print(highest_tags_jt)
+
+sorted_tags <- data %>%
+  filter(year >= 2015) %>% 
+  group_by(tag) %>% 
+  summarize(tag_total = sum(num_questions)) %>% 
+  arrange(desc(tag_total))
+
+# Get the five largest tags
+highest_tags <- head(sorted_tags$tag, n = 5)
+
+print(highest_tags)
+
+#largest year-over-year increase in its fraction of questions
+highest_ratio_tag <- data %>%
+mutate(fraction = num_questions/year_total) %>%
+arrange(tag,year) %>%
+group_by(tag) %>%
+mutate(ratio = fraction/lag(fraction)) %>%
+ungroup() %>%
+top_n(1,ratio) %>%
+select(tag) %>%
+as.character()
+highest_ratio_tag
