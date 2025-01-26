@@ -1,46 +1,65 @@
+# Import necessary libraries
 library(tidyverse)
-library(gridExtra) # This library helps you print side by side plots, but it's not essential
+library(infer)
 
-# Load men's and women's datasets
-women <- read_csv("women_results.csv")
-men <- read_csv("men_results.csv")
+#import csv file into table
+women <- read.csv("women_results.csv")
+men <- read.csv("men_results.csv")
 
-# Filtering the matches and creating the test values
-men <- men %>%
-          filter(tournament == "FIFA World Cup", date > "2002-01-01") %>%
-          mutate(goals_scored = home_score + away_score)
+#let's see what our table looks like
+View(men)
+View(women)
 
-women <- women %>%
-          filter(tournament == "FIFA World Cup", date > "2002-01-01") %>%
-          mutate(goals_scored = home_score + away_score)
+#since we only want to focus on FIFA World Cup matches and date after 2002-01-01, better filter them first
+women_filtered <- women %>%
+filter(tournament == "FIFA World Cup" & date > '2002-01-01')
+men_filtered <- men %>%
+filter(tournament == "FIFA World Cup" & date > '2002-01-01')
 
-# Determine normality using histograms
-men_plot <- ggplot(men, aes(x = goals_scored)) +
-  geom_histogram(color = "red", bins = 30) +
-  ggtitle("Goals Scored (Men's)") +
-  xlab("Goals Scored") +
-  ylab("Frequency")
+#compute total score in one game for both men and women
+women_filtered <- women_filtered %>%
+mutate(total_score = home_score + away_score)
 
-women_plot <- ggplot(women, aes(x = goals_scored)) +
-  geom_histogram(color = "blue", bins = 30) +
-  ggtitle("Goals Scored (Women's)") +
-  xlab("Goals Scored") +
-  ylab("Frequency")
+men_filtered <- men_filtered %>%
+mutate(total_score = home_score + away_score)
 
-grid.arrange(men_plot, women_plot, nrow = 1)
+#compute mean of the score for both men and women
+mean_men <- men_filtered %>%
+summarize(mean_men = mean(total_score)) %>%
+pull(mean_men)
 
-# Goals scored is not normally distributed, so use Wilcoxon-Mann-Whitney test of two groups (you can use other tests with the same assumptions if you prefer)
+mean_men
 
-# Run a Wilcoxon-Mann-Whitney test on goals_scored vs. group
-test_results <- wilcox.test(
-  x = women$goals_scored,
-  y = men$goals_scored,
-  alternative = "greater"
-)
+mean_women <- women_filtered %>%
+summarize(mean_women = mean(total_score)) %>%
+pull(mean_women)
 
-# Determine hypothesis test result using sig. level
-p_val <- round(test_results$p.value, 4)
-result <- ifelse(p_val <= 0.10, "reject", "fail to reject")
+mean_women
 
-# Create the result data frame
-result_df <- data.frame(p_val, result)
+#we are comparing two sample so we will use two samples t-test
+#$H_0$ : The mean number of goals scored in women's international soccer matches is the same as men's. Uwomen = Umen
+#$H_A$ : The mean number of goals scored in women's international soccer matches is greater than men's.
+# Uwomen > Umen
+testing <- wilcox.test(
+	women_filtered$total_score,
+	men_filtered$total_score,
+	alternative = "greater",
+	correction = FALSE)
+
+result_df <- data.frame(p_val,result)
+
+#got p value from test result equal to 0.02598
+p_val <- 0.005107
+
+#You assume a **10% significance level**
+#since p value is less than 10% significant level, we reject null hypothesis
+result <- "reject"
+
+
+#test wheter our data is normally distributed by plotting histrogram
+ggplot(women_filtered, aes(total_score))+
+geom_histogram(binwidth = 0.5)
+
+ggplot(men_filtered, aes(total_score))+
+geom_histogram(binwidth = 0.5)
+
